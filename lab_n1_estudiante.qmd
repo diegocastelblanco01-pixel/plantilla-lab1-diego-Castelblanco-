@@ -1,7 +1,7 @@
 ---
 title: "Laboratorio 1 · Organización en estado **Inicial**"
 subtitle: "Escalera de Madurez de Datos — Fundación Altiplano"
-author: "Escribe aquí tu nombre"
+author: "Diego Armando Castelblanco Vega"
 lang: es
 format:
   html:
@@ -115,6 +115,16 @@ la tabla, y por qué constituye un problema para cualquier proceso automatizado?
 
 *Tu respuesta:*
 
+El archivo tiene títulos informativos, filas en blanco o notas ubicados por encima de la tabla de datos real.
+
+Esto arruina cualquier proceso automatizado por tres razones:
+
+Desplazamiento de encabezados: R y herramientas como Power BI leen la primera fila como nombres de columna. Al haber texto encima, interpretan el título como variable y desplazan los encabezados reales a las filas de datos.
+
+Contaminación de tipos de datos: Al haber texto o celdas vacías en las primeras filas, el sistema clasifica columnas numéricas o de fecha como texto (character), imposibilitando cálculos automáticos.
+
+Ruptura de procesos: Si la persona a cargo cambia la cantidad de filas superiores en cada actualización, las rutas automáticas fallan al cambiar la posición de los datos.
+
 ```{r}
 # TODO 1.2 — Vuelve a leer el archivo saltando las filas decorativas.
 #            Pista: el argumento se llama `skip`. ¿Cuántas filas hay que saltar?
@@ -178,6 +188,11 @@ corresponde?
 
 *Tu respuesta:*
 
+No, no corresponde que el analista tome esta decisión en solitario.
+
+A quién le corresponde: Esta regla debe definirla el dueño o custodio del dato (Data Owner) —en este caso, la persona o área responsable del negocio/operación (como la dirección de la Fundación o la coordinación de Desarrollo)— en conjunto con el equipo de Gobernanza de Datos.
+
+Por qué: El analista solo ejecuta la lógica técnica. Definir qué constituye un "contacto válido" implica tomar decisiones sobre reglas de negocio (por ejemplo, determinar si un ID sin el patrón exacto representa una donación real, un registro histórico mal digitado o un donante potencial). Asumir esta regla en una línea de código sin validación de negocio corre el riesgo de descartar o alterar información crítica sin autorización.
 ***
 
 ## Paso 2 · Diagnóstico de calidad
@@ -278,6 +293,20 @@ comparten ID pero difieren entre sí. ¿Se resuelven de la misma manera? ¿Cuál
 
 *Tu respuesta:*
 
+No, no se resuelven de la misma manera.
+
+Las filas idénticas SÍ pueden resolverse con código:
+
+Son duplicados puros causados por errores de reingreso. Se solucionan automáticamente en el script aplicando reglas de desduplicación determinísticas (por ejemplo, con la función distinct() de R), ya que no hay pérdida ni conflicto de información al eliminar la copia exacta.
+
+Los registros que comparten ID pero difieren entre sí NO pueden resolverse solo con código:
+
+Este caso no debe automatizarse, ya que el código no tiene criterio de negocio para determinar cuál dato es el correcto o actualizado (por ejemplo, decidir entre dos números de teléfono distintos para la misma persona).
+
+Por qué no se puede resolver con código:
+
+Resolver un conflicto de datos contradictorios requiere intervención humana y validación de negocio (contactar al donante, revisar recibos o consultar al Data Owner). Imponer una regla arbitraria en código (como conservar siempre el primer o el último registro) corre el riesgo de descartar información verídica y conservar datos desactualizados o erróneos sin trazabilidad.
+
 ### 2.4 Consistencia
 
 > **Grado en que el dato no se contradice con otros datos relacionados.** Se mide
@@ -300,6 +329,13 @@ el dato, o de la organización?
 
 *Tu respuesta:*
 
+El problema es de la organización.
+
+No es del analista de BI: Su labor es transformar e interpretar datos, no adivinar intenciones ni reparar capturas defectuosas. Si aplicara reglas arbitrarias en el tablero para agrupar variables, estaría asumiendo reglas de negocio sin autorización.
+
+No es de quien captura el dato: Marcela (o el usuario de turno) no cuenta con las herramientas ni con la directriz clara: el archivo Excel carece de listas desplegables, validaciones de campo o un diccionario que restrinja el texto.
+
+Es de la organización: Revela la ausencia de Gobernanza de Datos en Nivel 1 (Inicial): no existen políticas de captura, catálogos estandarizados ni controles en la fuente.
 ***
 ## Paso 3 · Limpieza reproducible
 
@@ -363,6 +399,12 @@ Defiende tu decisión ante una directora que pide «una base limpia para el vier
 
 *Tu respuesta:*
 
+Se marcaron para revisión (o conservaron en una bitácora) en lugar de eliminarse a ciegas.
+
+Defensa ante la Directora:
+
+Eliminar registros con IDs duplicados por código corregiría la estética del tablero para el viernes, pero eliminaría donaciones reales o historial crítico de donantes sin trazabilidad. Ante el negocio, un registro duplicado con datos conflictivos requiere una validación operativa (revisar recibos o contactar al donante). Lo ético y técnicamente correcto es presentar los datos limpios desduplicando únicamente las filas 100% idénticas y aislar los IDs ambiguos en una "lista de revisión" para que el área de Desarrollo determine cuál registro es el vigente.
+
 ```{r}
 # TODO 3.3 — Construye una tabla ANTES vs DESPUÉS de al menos cuatro indicadores.
 #            Sugerencia: % de correos válidos, formas distintas de escribir la ciudad,
@@ -373,6 +415,12 @@ Defiende tu decisión ante una directora que pide «una base limpia para el vier
 indica eso sobre lo que la limpieza **puede** y **no puede** corregir?
 
 *Tu respuesta:*
+
+El porcentaje de correos válidos bajó o se convirtió en nulos (NA).
+
+Qué indica esto:
+
+La limpieza en código no crea información donde no la hay ni arregla datos falsos; solo estandariza formatos y filtra la basura. Si un correo estaba mal digitado (ej. juan.perez@com), la limpieza no puede adivinar la extensión correcta; su función es invalidarlo e imputar NA para evitar envíos fallidos. La limpieza arregla la estructura, pero la calidad de origen solo se resuelve en el punto de captura.
 
 ***
 
@@ -394,6 +442,11 @@ revela eso sobre el estado de gobierno de esta organización?
 
 *Tu respuesta:*
 
+La columna de responsable (y la confirmación de dominio_permitido).
+
+Qué revela:
+
+Revela la falta de madurez de la organización (Nivel 1). El analista de datos puede deducir la estructura técnica, pero no puede autoasignar responsabilidades institucionales sobre la custodia del dato (Data Ownership). Si nadie dentro de la fundación reconoce formalmente ser el dueño de un campo, la gobernanza no existe.
 ***
 
 ## Paso 5 · Plan de gobierno mínimo viable
@@ -414,11 +467,22 @@ eso.** El objetivo no es llegar al nivel 5: es llegar al **nivel 2**.
 
 *Tu respuesta:*
 
+Elegiría: "Implementar validaciones en origen (restricciones en la plantilla de captura/Excel)".
+
+Por qué:
+
+Es la única acción que ataca la causa raíz en el origen. Si se sigue permitiendo que Marcela o el equipo ingresen texto libre sin validaciones, el script de limpieza será siempre un "pañuelo de agua tibia" que no evitará que la base se siga corrompiendo cada día.
+
 **Pregunta 5.3.** Nombra una acción que deliberadamente **dejaste fuera** por no
 corresponder al nivel de madurez de esta organización, y explica por qué.
 
 *Tu respuesta:*
 
+Dejé fuera: "La implementación de una herramienta Enterprise de Catálogo de Datos / MDM (Master Data Management) o un Comité Formal de Gobernanza."
+
+Por qué:
+
+Una organización en Nivel 1 carece de la cultura, presupuesto y capacidad operativa para absorber software costoso o burocracia pesada. Proponer eso generaría rechazo y parálisis. El objetivo realista es escalar a Nivel 2 (Repetible) mediante reglas sencillas y scripts reproducibles.
 ***
 
 ## Paso 6 · Entregar el dato limpio
@@ -467,12 +531,16 @@ se debe el cambio?
 
 *Tu respuesta:*
 
+Ahora Tableau muestra exactamente 10 ciudades (o las correspondientes al catálogo real). El cambio se debe a que el script de R unificó las variantes tipográficas (mayúsculas, minúsculas, espacios y tildes como "BOGOTÁ", "bogota", "Bogotá") en una única cadena estandarizada ("Bogotá") antes de entregar el archivo a Tableau.
+
 **Pregunta 6.3.** Ese `.csv` lo descargaste y lo subiste manualmente. Si mañana llega
 `contactos_2025.xlsx`, ¿qué parte de este trabajo se repite sola y qué parte hay que
 rehacer a mano? **Esa parte manual es donde se interrumpe el linaje.**
 
 *Tu respuesta:*
+Lo que se repite solo (automatizado): Toda la lógica del script .qmd (filtrado de filas decorativas, normalización de texto, limpieza de fechas, validación de correos y exportación a .csv). Si llega contactos_2025.xlsx, basta con cambiar la ruta en la variable RUTA y ejecutar el documento.
 
+Lo que hay que hacer a mano (interrupción del linaje): La descarga manual del .csv desde Posit Cloud y su posterior carga manual mediante clics en la interfaz de Tableau. Allí se rompe el linaje automatizado, abriendo la puerta a errores de versión o descuidos humanos.
 ***
 
 ## Entrega
